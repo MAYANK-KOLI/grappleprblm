@@ -1,0 +1,95 @@
+extends KinematicBody
+
+
+var speed = 7
+var acceleration = 10
+var gravity = 0.2
+var jump = 15
+var can_slide = false
+var mouse_sensitivity = 0.2
+var damage = 50
+var grappling = false
+var hookpoint = Vector3()
+var hookpoint_get = false
+var direction = Vector3()
+var velocity = Vector3()
+var fall = Vector3()
+
+onready var head = $Head
+
+onready var aimcast =  $Head/Camera/Aimcast
+onready var ap = $Head/Camera/AnimationPlayer
+
+func _ready():
+	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+
+func _input(event):
+	
+	if event is InputEventMouseMotion:
+		rotate_y(deg2rad(-event.relative.x * mouse_sensitivity)) 
+		head.rotate_x(deg2rad(-event.relative.y * mouse_sensitivity)) 
+		head.rotation.x = clamp(head.rotation.x, deg2rad(-90), deg2rad(90))
+
+func grapple():
+	if Input.is_action_just_pressed("grapple"):
+		if aimcast.is_colliding():
+			if not grappling:
+				grappling = true
+	if grappling:
+		fall.y = 0
+		if not hookpoint_get:
+			hookpoint = aimcast.get_collision_point()
+			hookpoint = true
+		if hookpoint.distance_to(transform.origin):
+			if hookpoint_get:
+				transform.origin = lerp(transform.origin, hookpoint, 0.05)
+		else:
+			grappling = false
+			hookpoint = false
+
+func _physics_process(delta):
+	
+	direction = Vector3()
+	
+	grapple()
+	
+	move_and_slide(fall, Vector3.UP)
+	
+	if Input.is_action_just_pressed("fire"):
+		ap.play("shoot")
+	
+	if not is_on_floor():
+		fall.y -= gravity
+		
+	if Input.is_action_just_pressed("jump") and is_on_floor():
+		fall.y = jump
+	
+
+	
+	if Input.is_action_pressed("slide"):
+		speed = 26
+		self.scale=Vector3(0.5,0.5,0.5)
+	if Input.is_action_just_released("slide"):
+		can_slide = true
+		speed = 10
+		self.scale=Vector3(1,1,1)
+	if Input.is_action_pressed("front"):
+	
+		direction -= transform.basis.z
+	
+	elif Input.is_action_pressed("back"):
+		
+		direction += transform.basis.z
+		
+	if Input.is_action_pressed("left"):
+		
+		direction -= transform.basis.x			
+		
+	elif Input.is_action_pressed("right"):
+		
+		direction += transform.basis.x
+			
+		
+	direction = direction.normalized()
+	velocity = velocity.linear_interpolate(direction * speed, acceleration * delta) 
+	velocity = move_and_slide(velocity, Vector3.UP) 
